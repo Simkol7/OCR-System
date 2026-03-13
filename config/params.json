@@ -23,7 +23,6 @@
         "height_threshold": 0.1
     },
     "semantic_correction": {
-        "correction_mode": "dict",
-        "llm_model_path": "./models/qwen-0.5b"
+        "correction_mode": "dict"
     }
 }
