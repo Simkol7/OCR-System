@@ -65,7 +65,7 @@ def run_batch_test(test_dir="test_dataset", output_csv="test_results.csv"):
         try:
             text_a, _, time_a = algo_a.detect_and_recognize(target_path, conf_threshold=0.5, erode_size=2, dilate_x=15,
                                                             dilate_y=3)
-            # 净化文本输出，把换行替换为空格，截取前60个字符展示
+            # 净化文本输出，把换行替换为空格
             clean_text_a = text_a.replace('\n', ' ').strip()
             display_a = clean_text_a[:60] + "..." if len(clean_text_a) > 60 else clean_text_a
         except Exception as e:
@@ -90,7 +90,9 @@ def run_batch_test(test_dir="test_dataset", output_csv="test_results.csv"):
             "Time_A(s)": round(time_a, 3),
             "Time_B(s)": round(time_b, 3),
             "CharCount_A": len(clean_text_a),
-            "CharCount_B": len(clean_text_b)
+            "CharCount_B": len(clean_text_b),
+            "Text_A": clean_text_a,  # 新增：记录方案A完整识别文本
+            "Text_B": clean_text_b   # 新增：记录方案B完整识别文本
         })
 
     # 清理临时文件
@@ -100,7 +102,8 @@ def run_batch_test(test_dir="test_dataset", output_csv="test_results.csv"):
     # --- 写入 CSV 报告 ---
     output_csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), output_csv)
     with open(output_csv_path, mode='w', newline='', encoding='utf-8-sig') as f:
-        writer = csv.DictWriter(f, fieldnames=["Image", "Time_A(s)", "Time_B(s)", "CharCount_A", "CharCount_B"])
+        # 新增 Text_A 和 Text_B 到表头
+        writer = csv.DictWriter(f, fieldnames=["Image", "Time_A(s)", "Time_B(s)", "CharCount_A", "CharCount_B", "Text_A", "Text_B"])
         writer.writeheader()
         writer.writerows(results)
 
