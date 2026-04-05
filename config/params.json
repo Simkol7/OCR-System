@@ -1,6 +1,5 @@
 {
     "preprocess": {
-        "preprocess_mode": "scheme_b",
         "clahe_clip_limit": 2.0,
         "angle_fix_threshold": 15,
         "morph_erode_size": 2,
