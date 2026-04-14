@@ -3,7 +3,6 @@ main_ui.py — 桌面端双引擎OCR系统主界面入口
 优化[优化-3]：为模块、类和核心方法补全文档字符串
 """
 import sys
-import os
 import traceback
 
 from PyQt5.QtCore import Qt

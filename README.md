@@ -1,6 +1,6 @@
 # 双引擎文本识别系统
 
-基于 PyQt5 的双引擎 OCR 对比系统，集成传统机器视觉（OpenCV + Tesseract）与深度学习（PaddleOCR + ONNX INT8量化）两种识别方案，支持可视化参数调节与结果实时对比。本项目为本科毕业设计（计算机方向）。
+基于 PyQt5 的双引擎 OCR 对比系统，集成传统机器视觉（OpenCV + Tesseract）与深度学习（PaddleOCR + ONNX Runtime 加载离线 INT8 量化模型）两种识别方案，支持可视化参数调节与结果实时对比。本项目为本科毕业设计（计算机方向）。
 
 ---
 
@@ -28,11 +28,11 @@ text_ocr_system-master/
 │
 ├── ocr_engine_b/                  # 方案 B：深度学习引擎（对应论文第五章）
 │   ├── paddle_ocr_engine.py       # AlgorithmB 调度类，集成 DBNet + CRNN
-│   └── onnx_accelerator.py        # ONNX Runtime INT8 推理加速封装
+│   └── onnx_accelerator.py        # ONNX Runtime 加载离线量化模型
 │
 ├── post_process/                  # 后处理模块（对应论文 5.4 节）
 │   ├── box_merging.py             # 基于空间几何的碎框合并算法
-│   └── semantic_correction.py     # 字符白名单语义纠错（未来展望方向）
+│   └── semantic_correction.py     # 字符白名单过滤后处理
 │
 ├── models/                        # 深度学习模型（不上传 GitHub）
 │   ├── raw_det/                   # PP-OCRv4 检测模型（FP32）
@@ -46,8 +46,10 @@ text_ocr_system-master/
 │   └── cls_onnx_int8/             # 分类模型 INT8 量化版
 │
 ├── test/                          # 测试模块
-│   ├── test_case.py               # 批量测试集脚本，输出 test_results.csv
-│   └── compare_analysis.py        # 精度与耗时对比分析脚本
+│   ├── test_case.py               # 批量测试集脚本，输出 output/test_results.csv
+│   ├── compare_analysis.py        # 精度与耗时对比分析脚本
+│   ├── test_pipeline.py           # 命令行全链路测试入口（A/B 双方案耗时对比）
+│   └── test_image.jpg             # 系统自带标准测试样图
 │
 ├── test_dataset/                  # 测试图像集
 │   └── basic_2.png                # 示例测试图
@@ -57,10 +59,8 @@ text_ocr_system-master/
 │   └── result_B.jpg               # 方案 B 识别可视化结果
 │
 ├── main_ui.py                     # 【主入口】PyQt5 可视化界面
-├── test_pipeline.py               # 命令行全链路测试入口（A/B 双方案耗时对比）
 ├── model_quantization.py          # 计算图修复 + INT8 动态量化脚本（论文 5.3 节）
-├── requirements.txt               # Python 依赖清单
-└── test_image.jpg                 # 系统自带标准测试样图
+└── requirements.txt               # Python 依赖清单
 ```
 
 ---
@@ -78,7 +78,6 @@ text_ocr_system-master/
 | opencv-python | 4.8.0 | 图像预处理 |
 | numpy | 1.24.0 | 数值计算 |
 | pytesseract | 0.3.10 | Tesseract Python 封装 |
-| matplotlib | 3.7.0 | 测试结果图表绘制 |
 
 ---
 
@@ -144,18 +143,18 @@ python main_ui.py
 ### 命令行全链路测试
 
 ```bash
-python test_pipeline.py
+python test/test_pipeline.py
 ```
 
-对 `test_image.jpg` 同时运行方案 A 和方案 B，输出各自耗时与识别文本，并将可视化结果保存至 `output/` 目录。
+对 `test/test_image.jpg` 同时运行方案 A 和方案 B，输出各自耗时与识别文本，并将可视化结果保存至 `output/` 目录。
 
 ### 批量测试与精度分析
 
 ```bash
-# 批量测试（生成 test_results.csv）
+# 批量测试（生成 output/test_results.csv）
 python test/test_case.py
 
-# 对比分析（精度 + 耗时统计）
+# 对比分析（生成 output/accuracy_results.csv）
 python test/compare_analysis.py
 ```
 
@@ -181,16 +180,12 @@ python test/compare_analysis.py
     "ocr_b": {
         "use_angle_cls": true,
         "lang": "ch",
-        "use_gpu": false,
         "model_precision": "INT8",
         "inference_engine": "onnx"
     },
     "box_merging": {
         "horizontal_threshold": 15,
         "height_threshold": 0.1
-    },
-    "semantic_correction": {
-        "correction_mode": "dict"
     }
 }
 ```
@@ -203,7 +198,7 @@ python test/compare_analysis.py
 |------|------------------|------------------|
 | 检测方式 | OpenCV 形态学 + 轮廓提取 | DBNet 可微分二值化 |
 | 识别引擎 | Tesseract LSTM | PaddleOCR CRNN |
-| 推理加速 | 无 | ONNX Runtime INT8 量化 |
+| 推理加速 | 无 | ONNX Runtime 加载离线 INT8 量化模型 |
 | 中文支持 | chi_sim 语言包 | PP-OCRv4 中文模型 |
 | 适用场景 | 简单印刷体、英文 | 中英混排、复杂版面 |
 | 平均耗时 | 较快 | 更准确，INT8 加速后耗时可控 |
@@ -219,8 +214,7 @@ main_ui.py
     │       │       ├── preprocess/clahe_enhance.py
     │       │       └── preprocess/orientation_fix.py
     │       ├── recognition/tesseract_call.py
-    │       └── post_process/box_merging.py
-    │               └── post_process/semantic_correction.py
+    │       └── post_process/semantic_correction.py
     └── ocr_engine_b/paddle_ocr_engine.py (AlgorithmB)
             ├── preprocess/preprocess_switch.py
             ├── ocr_engine_b/onnx_accelerator.py
@@ -232,6 +226,5 @@ main_ui.py
 
 ## 未来展望
 
-- **语义纠错升级**：当前 `semantic_correction.py` 为字符白名单过滤基础版，可替换为基于词典或语言模型的纠错方案
-- **GPU 加速**：修改 `params.json` 中 `use_gpu: true` 并安装 `paddlepaddle-gpu` 即可启用
+- **文本后处理升级**：当前 `semantic_correction.py` 为字符白名单过滤基础版，可替换为基于词典或语言模型的纠错方案
 - **批量导出**：扩展 `test/test_case.py` 支持多图批量处理与汇总报告输出

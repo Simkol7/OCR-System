@@ -7,7 +7,6 @@ from preprocess.preprocess_switch import run_preprocess
 from .recognition.tesseract_call import dynamic_psm_recognition
 from post_process.semantic_correction import SemanticCorrector
 from common.utils import load_config, check_image_validity
-from common.exception_handle import ImageReadError  # 保留供 docstring 引用
 
 
 class AlgorithmA:
@@ -20,7 +19,7 @@ class AlgorithmA:
 
     def detect_and_recognize(self, path, conf_threshold=0.5, **kwargs):
         """
-        执行形态学检测 + Tesseract识别 + 语义纠错完整管线。
+        执行形态学检测 + Tesseract识别 + 字符过滤后处理完整管线。
         :param path: 图像文件路径
         :param conf_threshold: Tesseract置信度过滤阈值
         :return: (识别文本, 可视化图像, 耗时秒数)

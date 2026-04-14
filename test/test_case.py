@@ -102,8 +102,11 @@ def run_batch_test(test_dir="test_dataset", output_csv="test_results.csv"):
         print("\n未产生任何测试结果，CSV不写入。")
         return
 
-    # 写入 CSV 报告
-    output_csv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), output_csv)
+    # 写入 CSV 报告到项目根目录 output/
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_dir = os.path.join(project_root, "output")
+    os.makedirs(output_dir, exist_ok=True)
+    output_csv_path = output_csv if os.path.isabs(output_csv) else os.path.join(output_dir, os.path.basename(output_csv))
     with open(output_csv_path, mode="w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(
             f,

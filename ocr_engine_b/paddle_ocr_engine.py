@@ -6,7 +6,7 @@ import numpy as np
 from paddleocr import PaddleOCR
 
 from common.utils import load_config, check_image_validity
-from common.exception_handle import ImageReadError, OCRInferenceError
+from common.exception_handle import OCRInferenceError
 from preprocess.preprocess_switch import run_preprocess
 from post_process.box_merging import merge_boxes
 from post_process.semantic_correction import SemanticCorrector
@@ -15,7 +15,7 @@ from post_process.semantic_correction import SemanticCorrector
 class AlgorithmB:
     """
     方案B核心调度类：基于PaddleOCR（DBNet检测 + CRNN识别）的深度学习OCR引擎。
-    支持通过ONNX Runtime加载INT8量化模型进行推理加速。
+    支持通过ONNX Runtime加载离线INT8量化模型进行推理加速。
     """
 
     def __init__(self):
@@ -102,6 +102,6 @@ class AlgorithmB:
                 (0, 255, 0), 2,
             )
 
-        # 对每行识别结果应用语义纠错
+        # 对每行识别结果应用字符过滤后处理
         corrected_texts = [self.corrector.correct(m["text"]) for m in merged]
         return "\n".join(corrected_texts), img, time.time() - start

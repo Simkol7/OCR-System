@@ -2,6 +2,7 @@
 import os
 import re
 import sys
+import csv
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -41,15 +42,24 @@ def calculate_accuracy(pred_text: str, true_text: str) -> float:
     return min(accuracy, 100.0)
 
 
-def run_accuracy_evaluation(gt_file: str, img_dir: str) -> None:
+def run_accuracy_evaluation(gt_file: str, img_dir: str, output_csv: str = None) -> None:
     """
     读取 ground_truth.txt 中的标签，对测试集图像执行双方案推理并计算平均字符准确率。
     :param gt_file: 标签文件路径，格式为每行 "图片文件名|真实文本"
     :param img_dir: 测试图像所在目录
+    :param output_csv: 评估结果CSV输出路径；默认保存到项目根目录 output/accuracy_results.csv
     """
     if not os.path.exists(gt_file):
         print(f"[错误] 找不到真实标签文件: {gt_file}")
         return
+
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_dir = os.path.join(project_root, "output")
+    if output_csv is None:
+        output_csv = os.path.join(output_dir, "accuracy_results.csv")
+    elif not os.path.isabs(output_csv):
+        output_csv = os.path.join(output_dir, os.path.basename(output_csv))
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True)
 
     print("========== 启动 OCR 字符级准确率(Accuracy)客观评估 ==========")
     algo_a = AlgorithmA()
@@ -59,6 +69,7 @@ def run_accuracy_evaluation(gt_file: str, img_dir: str) -> None:
     total_acc_a = 0.0
     total_acc_b = 0.0
     valid_count = 0
+    results = []
 
     with open(gt_file, "r", encoding="utf-8") as f:
         for line in f:
@@ -76,40 +87,86 @@ def run_accuracy_evaluation(gt_file: str, img_dir: str) -> None:
             print(f"\n正在评估: {img_name}")
 
             # --- 方案 A 推理 ---
+            text_a, time_a, err_a = "", 0.0, ""
             try:
-                text_a, _, _ = algo_a.detect_and_recognize(
+                text_a, _, time_a = algo_a.detect_and_recognize(
                     img_path, conf_threshold=0.5, erode_size=2, dilate_x=15, dilate_y=3
                 )
                 acc_a = calculate_accuracy(text_a, true_text)
             except Exception as e:
                 print(f"  -> [方案 A] 推理异常: {e}")  # 记录异常原因，不再静默吞掉
                 acc_a = 0.0
+                err_a = str(e)
 
             # --- 方案 B 推理 ---
+            text_b, time_b, err_b = "", 0.0, ""
             try:
-                text_b, _, _ = algo_b.detect_and_recognize(
+                text_b, _, time_b = algo_b.detect_and_recognize(
                     img_path, conf_threshold=0.5, unclip_ratio=1.5
                 )
                 acc_b = calculate_accuracy(text_b, true_text)
             except Exception as e:
                 print(f"  -> [方案 B] 推理异常: {e}")  # 记录异常原因，不再静默吞掉
                 acc_b = 0.0
+                err_b = str(e)
 
             print(f"  -> 真实标签长度: {len(true_text)} 字符")
+            print(f"  -> [方案 A] 耗时: {time_a:.3f}s")
             print(f"  -> [方案 A] 准确率: {acc_a:.2f}%")
+            print(f"  -> [方案 B] 耗时: {time_b:.3f}s")
             print(f"  -> [方案 B] 准确率: {acc_b:.2f}%")
 
             total_acc_a += acc_a
             total_acc_b += acc_b
             valid_count += 1
+            results.append({
+                "Image": img_name,
+                "TrueTextLength": len(true_text),
+                "Time_A(s)": round(time_a, 3),
+                "Time_B(s)": round(time_b, 3),
+                "Accuracy_A(%)": round(acc_a, 2),
+                "Accuracy_B(%)": round(acc_b, 2),
+                "Text_A": text_a.replace("\n", " ").strip(),
+                "Text_B": text_b.replace("\n", " ").strip(),
+                "Error_A": err_a,
+                "Error_B": err_b,
+            })
 
     if valid_count > 0:
         avg_a = total_acc_a / valid_count
         avg_b = total_acc_b / valid_count
+        avg_time_a = sum(r["Time_A(s)"] for r in results) / valid_count
+        avg_time_b = sum(r["Time_B(s)"] for r in results) / valid_count
         print("\n========== 客观评估结论 ==========")
         print(f"评估样本数: {valid_count} 张图像")
         print(f"【传统方案 A】平均字符准确率: {avg_a:.2f}%")
         print(f"【深度学习方案 B】平均字符准确率: {avg_b:.2f}%")
+        print(f"【传统方案 A】平均耗时: {avg_time_a:.3f} 秒")
+        print(f"【深度学习方案 B】平均耗时: {avg_time_b:.3f} 秒")
+
+        results.append({
+            "Image": "AVERAGE",
+            "TrueTextLength": "",
+            "Time_A(s)": round(avg_time_a, 3),
+            "Time_B(s)": round(avg_time_b, 3),
+            "Accuracy_A(%)": round(avg_a, 2),
+            "Accuracy_B(%)": round(avg_b, 2),
+            "Text_A": "",
+            "Text_B": "",
+            "Error_A": "",
+            "Error_B": "",
+        })
+
+        fieldnames = [
+            "Image", "TrueTextLength", "Time_A(s)", "Time_B(s)",
+            "Accuracy_A(%)", "Accuracy_B(%)", "Text_A", "Text_B",
+            "Error_A", "Error_B",
+        ]
+        with open(output_csv, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(results)
+        print(f"详细评估结果已保存至: {output_csv}")
     else:
         print("\n未找到有效的评估样本。")
 

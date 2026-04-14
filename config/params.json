@@ -13,15 +13,11 @@
     "ocr_b": {
         "use_angle_cls": true,
         "lang": "ch",
-        "use_gpu": false,
         "model_precision": "INT8",
         "inference_engine": "onnx"
     },
     "box_merging": {
         "horizontal_threshold": 15,
         "height_threshold": 0.1
-    },
-    "semantic_correction": {
-        "correction_mode": "dict"
     }
 }

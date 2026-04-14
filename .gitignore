@@ -15,7 +15,10 @@ output/
 *.jpg
 *.png
 *.jpeg
-!test_image.jpg  # 惊叹号表示保留这张作为测试样图
+# 保留 README 中使用的示例测试图
+!test_image.jpg
+!test_dataset/
+!test_dataset/basic_2.png
 
 # 忽略虚拟环境
 venv/
