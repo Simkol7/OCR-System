@@ -10,13 +10,17 @@ models/
 *.pdiparams
 *.tar
 
-# 忽略测试输出和临时图片
-output/
+# 忽略测试输出图片，保留CSV实验结果
+output/*.jpg
+output/*.png
+output/*.jpeg
+!output/
+!output/*.csv
 *.jpg
 *.png
 *.jpeg
 # 保留 README 中使用的示例测试图
-!test_image.jpg
+!test/test_image.jpg
 !test_dataset/
 !test_dataset/basic_2.png
 
